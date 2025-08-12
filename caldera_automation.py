@@ -31,46 +31,38 @@ class CalderaLabAutomation:
     """Minimal Caldera Lab Automation"""
     
     def __init__(self):
-        """Initialize with configuration"""
+        """Initialize with configuration from environment variables"""
         print("=" * 60)
         print("Cisco Secure Firewall Caldera Lab Automation")
         print("=" * 60)
         
         # ================================
-        # USER CONFIGURATION SECTION
+        # CONFIGURATION FROM ENVIRONMENT
         # ================================
-        # Edit these values with your lab configuration:
+        # Configuration is now provided via environment variables from run.sh
         
-        self.fmc_host = "https://your-tenant.us.cdo.cisco.com"  # Replace with your cdFMC URL
-        self.api_token = "YOUR_API_TOKEN_HERE"                  # Replace with your API token
-        self.target_device = "NGFW1"                           # Fixed device name for lab
+        self.fmc_host = os.getenv('FMC_HOST', '')
+        self.api_token = os.getenv('FMC_API_TOKEN', '')
+        self.target_device = os.getenv('TARGET_DEVICE', 'NGFW1')
         
         # ================================
-        # END USER CONFIGURATION SECTION
+        # END CONFIGURATION SECTION
         # ================================
         
         # Validate configuration
-        if self.fmc_host == "https://your-tenant.us.cdo.cisco.com" or self.api_token == "YOUR_API_TOKEN_HERE":
-            print("\n❌ ERROR: Please update the configuration values in the script!")
-            print("   Edit the values in the __init__ method:")
-            print("   - fmc_host: Your cdFMC URL")
-            print("   - api_token: Your API token")
-            print("   - target_device: Your device name (optional)")
+        if not self.fmc_host or not self.api_token:
+            print("\n❌ ERROR: Configuration not found in environment variables!")
+            print("   Please run the script using: ./run.sh")
+            print("   Make sure to edit the configuration in run.sh first")
             sys.exit(1)
         
-        print(f"\n✓ Using configuration:")
+        print(f"\n✓ Using configuration from environment:")
         print(f"  Host: {self.fmc_host}")
         print(f"  Device: {self.target_device} (fixed for lab)")
         print(f"  Token: {self.api_token[:10]}...{self.api_token[-4:] if len(self.api_token) > 14 else ''}")
         
-        # Check for saved configuration as backup
+        # Check for saved configuration as backup (optional)
         config_file = ".env"
-        saved_config = self.load_saved_config(config_file)
-        
-        if saved_config and not self.fmc_host.startswith("https://your-tenant"):
-            print(f"\n📝 Note: Found saved configuration in {config_file}, but using script values")
-            
-        # Offer to save current configuration
         try:
             if not os.path.exists(config_file):
                 self.save_config(config_file)
