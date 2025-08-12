@@ -31,33 +31,52 @@ class CalderaLabAutomation:
     """Minimal Caldera Lab Automation"""
     
     def __init__(self):
-        """Initialize with user input or saved config"""
+        """Initialize with configuration"""
         print("=" * 60)
         print("Cisco Secure Firewall Caldera Lab Automation")
         print("=" * 60)
         
-        # Check for saved configuration
+        # ================================
+        # USER CONFIGURATION SECTION
+        # ================================
+        # Edit these values with your lab configuration:
+        
+        self.fmc_host = "https://your-tenant.us.cdo.cisco.com"  # Replace with your cdFMC URL
+        self.api_token = "YOUR_API_TOKEN_HERE"                  # Replace with your API token
+        self.target_device = "NGFW1"                           # Fixed device name for lab
+        
+        # ================================
+        # END USER CONFIGURATION SECTION
+        # ================================
+        
+        # Validate configuration
+        if self.fmc_host == "https://your-tenant.us.cdo.cisco.com" or self.api_token == "YOUR_API_TOKEN_HERE":
+            print("\n❌ ERROR: Please update the configuration values in the script!")
+            print("   Edit the values in the __init__ method:")
+            print("   - fmc_host: Your cdFMC URL")
+            print("   - api_token: Your API token")
+            print("   - target_device: Your device name (optional)")
+            sys.exit(1)
+        
+        print(f"\n✓ Using configuration:")
+        print(f"  Host: {self.fmc_host}")
+        print(f"  Device: {self.target_device} (fixed for lab)")
+        print(f"  Token: {self.api_token[:10]}...{self.api_token[-4:] if len(self.api_token) > 14 else ''}")
+        
+        # Check for saved configuration as backup
         config_file = ".env"
         saved_config = self.load_saved_config(config_file)
         
-        if saved_config:
-            print(f"\nFound saved configuration in {config_file}")
-            use_saved = input("Use saved configuration? [Y/n]: ").strip().lower()
-            if use_saved in ('', 'y', 'yes'):
-                self.fmc_host = saved_config.get('FMC_HOST', '')
-                self.api_token = saved_config.get('FMC_API_TOKEN', '')
-                self.target_device = saved_config.get('TARGET_DEVICE', 'NGFW1')
-                print(f"Using saved config - Host: {self.fmc_host}, Device: {self.target_device}")
-            else:
-                self.get_user_input()
-        else:
-            self.get_user_input()
+        if saved_config and not self.fmc_host.startswith("https://your-tenant"):
+            print(f"\n📝 Note: Found saved configuration in {config_file}, but using script values")
             
-        # Offer to save configuration
-        if not saved_config or not os.path.exists(config_file):
-            save_config = input("\nSave configuration for future use? [y/N]: ").strip().lower()
-            if save_config in ('y', 'yes'):
+        # Offer to save current configuration
+        try:
+            if not os.path.exists(config_file):
                 self.save_config(config_file)
+                print(f"✓ Configuration saved to {config_file} for backup")
+        except Exception as e:
+            logger.warning(f"Could not save backup config: {e}")
         
         # Setup API client
         self.setup_api_client()
@@ -65,15 +84,6 @@ class CalderaLabAutomation:
         self.domain_uuid = None
         self.device_id = None
         self.policies = {}
-    
-    def get_user_input(self):
-        """Get configuration from user input"""
-        # Get minimal required inputs
-        self.fmc_host = input("Enter cdFMC URL (e.g., https://tenant.us.cdo.cisco.com): ").strip()
-        self.api_token = input("Enter API Token: ").strip()
-        
-        # Optional inputs with defaults
-        self.target_device = input("Target device name [NGFW1]: ").strip() or "NGFW1"
     
     def load_saved_config(self, config_file):
         """Load configuration from file"""
