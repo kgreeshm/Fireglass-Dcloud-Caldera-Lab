@@ -114,7 +114,7 @@ class CalderaLabAutomation:
         self.headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-auth-access-token': self.api_token
+            'Authorization': f'Bearer {self.api_token}'
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
@@ -125,17 +125,39 @@ class CalderaLabAutomation:
         logger.info("Testing authentication...")
         
         try:
+            # First test with domains endpoint
             response = self.session.get(f"{self.base_url}/domain")
+            
             if response.status_code == 200:
                 domains = response.json()
                 if 'items' in domains and domains['items']:
                     self.domain_uuid = domains['items'][0]['uuid']
                     logger.info(f"✓ Authentication successful - Domain: {self.domain_uuid}")
                     return True
+                else:
+                    logger.error("No domains found in response")
+                    return False
+            elif response.status_code == 401:
+                logger.error("Authentication failed: Invalid API token")
+                logger.error("Please check your API token in run.sh")
+                return False
+            elif response.status_code == 403:
+                logger.error("Authentication failed: Access forbidden")
+                logger.error("Please check your API token permissions")
+                return False
+            else:
+                logger.error(f"Authentication failed: HTTP {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return False
             
-            logger.error(f"Authentication failed: {response.status_code}")
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error: Cannot reach {self.fmc_host}")
+            logger.error("Please check your FMC_HOST URL in run.sh")
             return False
-            
+        except requests.exceptions.SSLError as e:
+            logger.error(f"SSL error: {e}")
+            logger.error("Please check your FMC_HOST URL (should use https://)")
+            return False
         except Exception as e:
             logger.error(f"Authentication error: {e}")
             return False
