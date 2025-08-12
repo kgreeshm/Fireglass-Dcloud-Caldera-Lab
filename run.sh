@@ -9,25 +9,28 @@ echo "=========================="
 # ====================================
 # Edit these values with your lab configuration:
 
-export FMC_HOST="https://your-tenant.us.cdo.cisco.com"  # Replace with your cdFMC URL
-export FMC_API_TOKEN="YOUR_API_TOKEN_HERE"              # Replace with your API token
-export TARGET_DEVICE="NGFW1"                            # Fixed device name for lab
+export FMC_HOST="https://your-tenant.us.cdo.cisco.com"      # Replace with your cdFMC URL
+export SCC_URL="https://your-scc.us.cdo.cisco.com"         # Replace with your SCC URL
+export FMC_API_TOKEN="YOUR_API_TOKEN_HERE"                  # Replace with your API token
+export TARGET_DEVICE="NGFW1"                                # Fixed device name for lab
 
 # ====================================
 # END CONFIGURATION SECTION
 # ====================================
 
 # Validate configuration
-if [ "$FMC_HOST" = "https://your-tenant.us.cdo.cisco.com" ] || [ "$FMC_API_TOKEN" = "YOUR_API_TOKEN_HERE" ]; then
+if [ "$FMC_HOST" = "https://your-tenant.us.cdo.cisco.com" ] || [ "$SCC_URL" = "https://your-scc.us.cdo.cisco.com" ] || [ "$FMC_API_TOKEN" = "YOUR_API_TOKEN_HERE" ]; then
     echo "❌ ERROR: Please update the configuration values in run.sh!"
     echo "   Edit the values in the CONFIGURATION SECTION:"
     echo "   - FMC_HOST: Your cdFMC URL"
+    echo "   - SCC_URL: Your SCC URL" 
     echo "   - FMC_API_TOKEN: Your API token"
     exit 1
 fi
 
 echo "✓ Configuration loaded from run.sh:"
-echo "  Host: $FMC_HOST"
+echo "  FMC Host: $FMC_HOST"
+echo "  SCC URL: $SCC_URL"
 echo "  Device: $TARGET_DEVICE"
 echo "  Token: ${FMC_API_TOKEN:0:10}...${FMC_API_TOKEN: -4}"
 echo ""

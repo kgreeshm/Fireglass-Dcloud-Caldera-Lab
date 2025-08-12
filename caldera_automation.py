@@ -42,6 +42,7 @@ class CalderaLabAutomation:
         # Configuration is now provided via environment variables from run.sh
         
         self.fmc_host = os.getenv('FMC_HOST', '')
+        self.scc_url = os.getenv('SCC_URL', '')
         self.api_token = os.getenv('FMC_API_TOKEN', '')
         self.target_device = os.getenv('TARGET_DEVICE', 'NGFW1')
         
@@ -50,14 +51,16 @@ class CalderaLabAutomation:
         # ================================
         
         # Validate configuration
-        if not self.fmc_host or not self.api_token:
+        if not self.fmc_host or not self.scc_url or not self.api_token:
             print("\n❌ ERROR: Configuration not found in environment variables!")
             print("   Please run the script using: ./run.sh")
             print("   Make sure to edit the configuration in run.sh first")
+            print("   Required: FMC_HOST, SCC_URL, and FMC_API_TOKEN")
             sys.exit(1)
         
         print(f"\n✓ Using configuration from environment:")
-        print(f"  Host: {self.fmc_host}")
+        print(f"  FMC Host: {self.fmc_host}")
+        print(f"  SCC URL: {self.scc_url}")
         print(f"  Device: {self.target_device} (fixed for lab)")
         print(f"  Token: {self.api_token[:10]}...{self.api_token[-4:] if len(self.api_token) > 14 else ''}")
         
@@ -110,7 +113,8 @@ class CalderaLabAutomation:
     
     def setup_api_client(self):
         """Setup API client with current configuration"""
-        self.base_url = f"{self.fmc_host}/api/fmc_config/v1"
+        # For SCC-enabled cdFMC, use SCC URL for API calls
+        self.base_url = f"{self.scc_url}/api/fmc_config/v1"
         self.headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -122,44 +126,79 @@ class CalderaLabAutomation:
         
     def authenticate(self):
         """Test authentication and get domain"""
-        logger.info("Testing authentication...")
+        logger.info("Testing SCC-enabled cdFMC authentication...")
         
         try:
-            # First test with domains endpoint
+            # Try SCC URL first
+            logger.info(f"Attempting authentication with SCC URL: {self.scc_url}")
             response = self.session.get(f"{self.base_url}/domain")
             
             if response.status_code == 200:
                 domains = response.json()
                 if 'items' in domains and domains['items']:
                     self.domain_uuid = domains['items'][0]['uuid']
-                    logger.info(f"✓ Authentication successful - Domain: {self.domain_uuid}")
+                    logger.info(f"✓ SCC Authentication successful - Domain: {self.domain_uuid}")
                     return True
                 else:
-                    logger.error("No domains found in response")
+                    logger.error("No domains found in SCC response")
                     return False
+                    
             elif response.status_code == 401:
-                logger.error("Authentication failed: Invalid API token")
+                logger.error("SCC Authentication failed: Invalid API token")
                 logger.error("Please check your API token in run.sh")
                 return False
+                
             elif response.status_code == 403:
-                logger.error("Authentication failed: Access forbidden")
+                logger.error("SCC Authentication failed: Access forbidden")
                 logger.error("Please check your API token permissions")
                 return False
+                
             else:
-                logger.error(f"Authentication failed: HTTP {response.status_code}")
+                # If SCC fails, try direct FMC URL as fallback
+                logger.warning(f"SCC authentication failed (HTTP {response.status_code}), trying direct FMC...")
+                return self._try_direct_fmc_auth()
+                
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error to SCC: Cannot reach {self.scc_url}")
+            logger.error("Trying direct FMC connection as fallback...")
+            return self._try_direct_fmc_auth()
+            
+        except requests.exceptions.SSLError as e:
+            logger.error(f"SSL error with SCC: {e}")
+            logger.error("Please check your SCC_URL (should use https://)")
+            return False
+            
+        except Exception as e:
+            logger.error(f"SCC Authentication error: {e}")
+            return False
+    
+    def _try_direct_fmc_auth(self):
+        """Fallback: Try direct FMC authentication"""
+        try:
+            logger.info(f"Attempting direct FMC authentication: {self.fmc_host}")
+            # Update base URL to direct FMC
+            direct_base_url = f"{self.fmc_host}/api/fmc_config/v1"
+            
+            response = self.session.get(f"{direct_base_url}/domain")
+            
+            if response.status_code == 200:
+                domains = response.json()
+                if 'items' in domains and domains['items']:
+                    self.domain_uuid = domains['items'][0]['uuid']
+                    # Update base URL for future calls
+                    self.base_url = direct_base_url
+                    logger.info(f"✓ Direct FMC Authentication successful - Domain: {self.domain_uuid}")
+                    return True
+                else:
+                    logger.error("No domains found in direct FMC response")
+                    return False
+            else:
+                logger.error(f"Direct FMC authentication also failed: HTTP {response.status_code}")
                 logger.error(f"Response: {response.text}")
                 return False
-            
-        except requests.exceptions.ConnectionError as e:
-            logger.error(f"Connection error: Cannot reach {self.fmc_host}")
-            logger.error("Please check your FMC_HOST URL in run.sh")
-            return False
-        except requests.exceptions.SSLError as e:
-            logger.error(f"SSL error: {e}")
-            logger.error("Please check your FMC_HOST URL (should use https://)")
-            return False
+                
         except Exception as e:
-            logger.error(f"Authentication error: {e}")
+            logger.error(f"Direct FMC authentication error: {e}")
             return False
     
     def get_device(self):
