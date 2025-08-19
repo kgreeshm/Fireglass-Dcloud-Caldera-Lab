@@ -7,30 +7,36 @@ echo "=========================="
 # ====================================
 # CONFIGURATION SECTION
 # ====================================
-# Edit these values with your lab configuration:
+# Configuration is loaded from inputs.sh
+# Edit inputs.sh file to set your lab configuration
 
-export FMC_HOST="https://your-tenant.us.cdo.cisco.com"      # Replace with your cdFMC URL
-export SCC_URL="https://your-scc.us.cdo.cisco.com"         # Replace with your SCC URL
-export FMC_API_TOKEN="YOUR_API_TOKEN_HERE"                  # Replace with your API token
-export TARGET_DEVICE="NGFW1"                                # Fixed device name for lab
+# Check if inputs.sh exists
+if [ ! -f "inputs.sh" ]; then
+    echo "❌ Error: inputs.sh file not found"
+    echo "   Please create inputs.sh with your lab configuration"
+    echo "   See README.md for instructions"
+    exit 1
+fi
+
+# Load configuration from inputs.sh
+echo "🔧 Loading configuration from inputs.sh..."
+source inputs.sh
 
 # ====================================
 # END CONFIGURATION SECTION
 # ====================================
 
 # Validate configuration
-if [ "$FMC_HOST" = "https://your-tenant.us.cdo.cisco.com" ] || [ "$SCC_URL" = "https://your-scc.us.cdo.cisco.com" ] || [ "$FMC_API_TOKEN" = "YOUR_API_TOKEN_HERE" ]; then
-    echo "❌ ERROR: Please update the configuration values in run.sh!"
-    echo "   Edit the values in the CONFIGURATION SECTION:"
+if [ "$FMC_HOST" = "https://your-cdo-instance.app.region.cdo.cisco.com" ] || [ "$FMC_API_TOKEN" = "your-api-token-here" ]; then
+    echo "❌ ERROR: Please update the configuration values in inputs.sh!"
+    echo "   Edit the values in inputs.sh file:"
     echo "   - FMC_HOST: Your cdFMC URL"
-    echo "   - SCC_URL: Your SCC URL" 
     echo "   - FMC_API_TOKEN: Your API token"
     exit 1
 fi
 
-echo "✓ Configuration loaded from run.sh:"
+echo "✓ Configuration loaded from inputs.sh:"
 echo "  FMC Host: $FMC_HOST"
-echo "  SCC URL: $SCC_URL"
 echo "  Device: $TARGET_DEVICE"
 echo "  Token: ${FMC_API_TOKEN:0:10}...${FMC_API_TOKEN: -4}"
 echo ""
@@ -65,8 +71,23 @@ else
 fi
 
 # Run the automation
-echo "🚀 Running Caldera Lab Automation..."
-python caldera_automation.py
+echo "🚀 Running Caldera Lab Automation (Modular Version)..."
+echo ""
+echo "Available automation options:"
+echo "  1. Full automation (recommended): python caldera_lab.py"
+echo "  2. Individual modules for troubleshooting:"
+echo "     - File Policy only: python file_policy.py"
+echo "     - Intrusion Policy only: python intrusion_policy.py"
+echo "     - Access Policy only: python access_policy.py"
+echo ""
+
+# Export environment variables for Python modules
+export FMC_HOST
+export FMC_API_TOKEN
+export TARGET_DEVICE
+
+# Run the main orchestrator
+python caldera_lab.py
 
 # Capture exit code
 EXIT_CODE=$?
